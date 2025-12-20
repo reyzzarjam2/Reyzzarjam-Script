@@ -1,6 +1,7 @@
 -- [[ KONFIGURASI LINK GITHUB ]]
--- Masukkan Link Raw Github script kamu di bawah ini:
-local MyGithubLink = "https://raw.githubusercontent.com/reyzzarjam2/Reyzzarjam-Script/refs/heads/main/autorejoin.lua"
+-- PASTIKAN INI DIGANTI DENGAN LINK SCRIPT ASLI KAMU!
+-- Contoh: "https://raw.githubusercontent.com/PixelatedL/DaHood/main/Main.lua"
+local MyGithubLink = "https://raw.githubusercontent.com/USERNAME/REPO/main/script.lua"
 
 -----------------------------------------------------------
 -- SYSTEM VARIABLES
@@ -11,11 +12,18 @@ local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
 local ConfigFileName = "ReyzzAutoRejoin_Config.txt"
-local queue_on_teleport = queue_on_teleport or syn.queue_on_teleport or fluxus.queue_on_teleport
+
+-- [[ 1. DETEKSI FUNGSI QUEUE YANG LEBIH KUAT ]]
+local queue_on_teleport = (syn and syn.queue_on_teleport) 
+    or queue_on_teleport 
+    or (fluxus and fluxus.queue_on_teleport) 
+    or (request and request.queue_on_teleport)
+    or nil
 
 -- Cek apakah executor support queue
 if not queue_on_teleport then
-    warn("Executor kamu tidak support queue_on_teleport! Script mungkin tidak akan auto-execute setelah rejoin.")
+    warn("⚠️ PERINGATAN: Executor kamu TIDAK support 'queue_on_teleport'!")
+    warn("Script akan rejoin, tapi TIDAK AKAN execute ulang otomatis.")
 end
 
 -- [[ FUNGSI SAVE/LOAD CONFIG ]]
@@ -33,42 +41,44 @@ local function LoadConfig()
     return false
 end
 
--- Load status terakhir saat script jalan
 IsAutoRejoin = LoadConfig()
 
 -----------------------------------------------------------
 -- UI SEDERHANA (PANEL)
 -----------------------------------------------------------
+-- (Hapus UI lama jika ada biar gak numpuk)
+for _, v in pairs(CoreGui:GetChildren()) do
+    if v.Name == "ReyzzRejoinUI" then v:Destroy() end
+end
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ReyzzRejoinUI"
 ScreenGui.Parent = CoreGui
 
 local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 200, 0, 90)
-Frame.Position = UDim2.new(0.05, 0, 0.2, 0) -- Posisi di kiri layar
-Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+Frame.Size = UDim2.new(0, 220, 0, 100)
+Frame.Position = UDim2.new(0.02, 0, 0.3, 0) 
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 Frame.BorderSizePixel = 0
 Frame.Active = true
-Frame.Draggable = true -- Bisa digeser
+Frame.Draggable = true 
 
 local UICorner = Instance.new("UICorner", Frame)
 UICorner.CornerRadius = UDim.new(0, 8)
 
--- Judul
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
-Title.Text = "AUTO REJOIN (SAME SERVER)"
+Title.Text = "AUTO REJOIN & EXEC"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.GothamBold
+Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 12
 
--- Tombol Toggle
 local ToggleBtn = Instance.new("TextButton", Frame)
 ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
 ToggleBtn.Position = UDim2.new(0.1, 0, 0.45, 0)
 ToggleBtn.BackgroundColor3 = IsAutoRejoin and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 50, 50)
-ToggleBtn.Text = IsAutoRejoin and "STATUS: ON" or "STATUS: OFF"
+ToggleBtn.Text = IsAutoRejoin and "SYSTEM: ON" or "SYSTEM: OFF"
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.Font = Enum.Font.GothamBold
 ToggleBtn.TextSize = 14
@@ -80,46 +90,62 @@ BtnCorner.CornerRadius = UDim.new(0, 6)
 -- LOGIKA UTAMA
 -----------------------------------------------------------
 
--- Fungsi Rejoin
 local function TriggerRejoin()
     if not IsAutoRejoin then return end
     
-    -- 1. Siapkan Code untuk Server Selanjutnya (PENTING)
-    -- Ini yang bikin dia execute ulang sendiri
+    -- [[ 2. SCRIPT YANG AKAN DIJALANKAN SETELAH REJOIN ]]
+    -- Saya tambahkan print debug & wait agar lebih aman
     local AutoExecScript = [[
+        print("✅ Auto-Exec: Script Started!")
         repeat task.wait() until game:IsLoaded()
-        loadstring(game:HttpGet("]] .. MyGithubLink .. [["))()
+        task.wait(3) -- Tunggu 3 detik biar game benar-benar siap
+        
+        print("🚀 Auto-Exec: Loading GitHub Script...")
+        local url = "]] .. MyGithubLink .. [["
+        
+        local success, err = pcall(function()
+            loadstring(game:HttpGet(url))()
+        end)
+        
+        if not success then
+            warn("❌ Auto-Exec Gagal: " .. tostring(err))
+            print("Cek apakah link GitHub kamu benar/valid?")
+        else
+            print("✅ Auto-Exec Berhasil!")
+        end
     ]]
     
+    -- Masukkan ke antrian executor
     if queue_on_teleport then
         queue_on_teleport(AutoExecScript)
+        print("✅ Queue Teleport Berhasil Diset!")
+    else
+        warn("❌ Gagal set Queue (Executor tidak support)")
     end
 
-    -- 2. Lakukan Teleport ke Job ID yang sama
-    print("⏳ Auto Rejoin: Teleporting in 3 seconds...")
+    print("⏳ Auto Rejoin: Teleporting ke Server yang Sama...")
     
-    -- Kita pakai pcall biar kalau server penuh/error dia coba lagi
+    -- Coba Rejoin Server Sama
     local success, err = pcall(function()
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
     end)
     
+    -- Jika gagal (penuh/bug), pindah server random
     if not success then
-        warn("Gagal Rejoin Same Server (Mungkin Penuh/Tutup). Mencoba Server Lain...")
-        TeleportService:Teleport(game.PlaceId, LocalPlayer) -- Fallback ke server random
+        warn("⚠️ Rejoin Gagal (Server Penuh/Tutup). Pindah Server Random...")
+        TeleportService:Teleport(game.PlaceId, LocalPlayer) 
     end
 end
 
--- Fungsi Loop Menunggu Render
 local function StartLoop()
     task.spawn(function()
         if IsAutoRejoin then
-            -- Tunggu Karakter Ada
+            -- Tunggu Karakter Render
             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
             
-            -- Tunggu 2 Detik setelah Render (Sesuai request)
+            -- Tunggu 2 Detik (Sesuai Request)
             task.wait(2)
             
-            -- Cek lagi takutnya dimatiin pas loading
             if IsAutoRejoin then
                 TriggerRejoin()
             end
@@ -127,23 +153,20 @@ local function StartLoop()
     end)
 end
 
--- Event Klik Tombol
 ToggleBtn.MouseButton1Click:Connect(function()
     IsAutoRejoin = not IsAutoRejoin
-    SaveConfig(IsAutoRejoin) -- Simpan status
+    SaveConfig(IsAutoRejoin)
     
-    -- Update Visual Tombol
     if IsAutoRejoin then
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-        ToggleBtn.Text = "STATUS: ON"
-        StartLoop() -- Jalankan loop
+        ToggleBtn.Text = "SYSTEM: ON"
+        StartLoop()
     else
         ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        ToggleBtn.Text = "STATUS: OFF"
+        ToggleBtn.Text = "SYSTEM: OFF"
     end
 end)
 
--- Jalankan otomatis saat script pertama kali di-execute (jika config ON)
 if IsAutoRejoin then
     StartLoop()
 end
