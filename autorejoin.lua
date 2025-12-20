@@ -1,6 +1,6 @@
 -- [[ KONFIGURASI LINK GITHUB ]]
 -- Masukkan Link Raw Github script kamu di bawah ini:
-local MyGithubLink = "https://raw.githubusercontent.com/USERNAME/REPO/main/script.lua"
+local MyGithubLink = "https://raw.githubusercontent.com/reyzzarjam2/Reyzzarjam-Script/refs/heads/main/autorejoin.lua"
 
 -----------------------------------------------------------
 -- SYSTEM VARIABLES
