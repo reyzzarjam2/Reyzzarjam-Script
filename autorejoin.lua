@@ -1,172 +1,113 @@
--- [[ KONFIGURASI LINK GITHUB ]]
--- PASTIKAN INI DIGANTI DENGAN LINK SCRIPT ASLI KAMU!
--- Contoh: "https://raw.githubusercontent.com/PixelatedL/DaHood/main/Main.lua"
-local MyGithubLink = "https://raw.githubusercontent.com/reyzzarjam2/Reyzzarjam-Script/refs/heads/main/autorejoin.lua"
+
+-- [[ 1. MASUKKAN LINK SCRIPT KAMU DI SINI ]]
+local ScriptLink = "https://raw.githubusercontent.com/reyzzarjam2/Reyzzarjam-Script/refs/heads/main/autorejoin.lua"
 
 -----------------------------------------------------------
--- SYSTEM VARIABLES
+-- INFINITE YIELD STYLE QUEUE DETECTION
 -----------------------------------------------------------
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
-local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
-local ConfigFileName = "ReyzzAutoRejoin_Config.txt"
-
--- [[ 1. DETEKSI FUNGSI QUEUE YANG LEBIH KUAT ]]
-local queue_on_teleport = (syn and syn.queue_on_teleport) 
+-- Ini adalah cara Infinite Yield mencari fungsi queue (Cek satu-satu)
+local queueteleport = (syn and syn.queue_on_teleport) 
     or queue_on_teleport 
     or (fluxus and fluxus.queue_on_teleport) 
     or (request and request.queue_on_teleport)
-    or nil
-
--- Cek apakah executor support queue
-if not queue_on_teleport then
-    warn("⚠️ PERINGATAN: Executor kamu TIDAK support 'queue_on_teleport'!")
-    warn("Script akan rejoin, tapi TIDAK AKAN execute ulang otomatis.")
-end
-
--- [[ FUNGSI SAVE/LOAD CONFIG ]]
-local IsAutoRejoin = false
-
-local function SaveConfig(boolValue)
-    writefile(ConfigFileName, tostring(boolValue))
-end
-
-local function LoadConfig()
-    if isfile(ConfigFileName) then
-        local content = readfile(ConfigFileName)
-        return content == "true"
-    end
-    return false
-end
-
-IsAutoRejoin = LoadConfig()
+    or (function() return print("⚠️ Executor ini benar-benar tidak support Queue!") end)
 
 -----------------------------------------------------------
--- UI SEDERHANA (PANEL)
+-- UI PANEL (Sama seperti request kamu)
 -----------------------------------------------------------
--- (Hapus UI lama jika ada biar gak numpuk)
-for _, v in pairs(CoreGui:GetChildren()) do
-    if v.Name == "ReyzzRejoinUI" then v:Destroy() end
-end
+local CoreGui = game:GetService("CoreGui")
+pcall(function() CoreGui.ReyzzRejoin:Destroy() end)
 
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "ReyzzRejoinUI"
+ScreenGui.Name = "ReyzzRejoin"
 ScreenGui.Parent = CoreGui
 
 local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 220, 0, 100)
-Frame.Position = UDim2.new(0.02, 0, 0.3, 0) 
-Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.Draggable = true 
-
-local UICorner = Instance.new("UICorner", Frame)
-UICorner.CornerRadius = UDim.new(0, 8)
+Frame.Size = UDim2.new(0, 200, 0, 80)
+Frame.Position = UDim2.new(0.02, 0, 0.3, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Frame.Active = true; Frame.Draggable = true
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
 
 local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Text = "IY STYLE REJOIN"
+Title.Size = UDim2.new(1,0,0,25)
 Title.BackgroundTransparency = 1
-Title.Text = "AUTO REJOIN & EXEC"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 12
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Font = Enum.Font.GothamBold; Title.TextSize = 12
 
-local ToggleBtn = Instance.new("TextButton", Frame)
-ToggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
-ToggleBtn.Position = UDim2.new(0.1, 0, 0.45, 0)
-ToggleBtn.BackgroundColor3 = IsAutoRejoin and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 50, 50)
-ToggleBtn.Text = IsAutoRejoin and "SYSTEM: ON" or "SYSTEM: OFF"
-ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.TextSize = 14
-
-local BtnCorner = Instance.new("UICorner", ToggleBtn)
-BtnCorner.CornerRadius = UDim.new(0, 6)
+local StatusBtn = Instance.new("TextButton", Frame)
+StatusBtn.Size = UDim2.new(0.9, 0, 0, 40)
+StatusBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
+StatusBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+StatusBtn.Text = "OFF"
+StatusBtn.TextColor3 = Color3.new(1,1,1)
+StatusBtn.Font = Enum.Font.GothamBlack
+Instance.new("UICorner", StatusBtn).CornerRadius = UDim.new(0, 6)
 
 -----------------------------------------------------------
--- LOGIKA UTAMA
+-- LOGIKA "INFINITE YIELD REJOIN"
 -----------------------------------------------------------
+local IsActive = false
 
-local function TriggerRejoin()
-    if not IsAutoRejoin then return end
-    
-    -- [[ 2. SCRIPT YANG AKAN DIJALANKAN SETELAH REJOIN ]]
-    -- Saya tambahkan print debug & wait agar lebih aman
-    local AutoExecScript = [[
-        print("✅ Auto-Exec: Script Started!")
+-- Fungsi Rejoin persis gaya IY
+local function IY_Rejoin()
+    if not IsActive then return end
+
+    -- 1. Susun perintah execute (String yang aman)
+    local safeScript = [[
         repeat task.wait() until game:IsLoaded()
-        task.wait(3) -- Tunggu 3 detik biar game benar-benar siap
-        
-        print("🚀 Auto-Exec: Loading GitHub Script...")
-        local url = "]] .. MyGithubLink .. [["
-        
-        local success, err = pcall(function()
-            loadstring(game:HttpGet(url))()
+        print("🔄 IY Style: Executing Script...")
+        pcall(function()
+            loadstring(game:HttpGet("]] .. ScriptLink .. [["))()
         end)
-        
-        if not success then
-            warn("❌ Auto-Exec Gagal: " .. tostring(err))
-            print("Cek apakah link GitHub kamu benar/valid?")
-        else
-            print("✅ Auto-Exec Berhasil!")
-        end
     ]]
-    
-    -- Masukkan ke antrian executor
-    if queue_on_teleport then
-        queue_on_teleport(AutoExecScript)
-        print("✅ Queue Teleport Berhasil Diset!")
-    else
-        warn("❌ Gagal set Queue (Executor tidak support)")
-    end
 
-    print("⏳ Auto Rejoin: Teleporting ke Server yang Sama...")
+    -- 2. Masukkan ke Queue menggunakan fungsi deteksi IY
+    queueteleport(safeScript)
+
+    -- 3. Teleport (Gunakan TeleportToPlaceInstance agar server sama)
+    print("⏳ Teleporting to same server...")
     
-    -- Coba Rejoin Server Sama
-    local success, err = pcall(function()
+    if #Players:GetPlayers() <= 1 then
+        -- Kalau sendirian, pakai Rejoin biasa
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    else
+        -- Kalau rame, paksa masuk JobId yang sama
         TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-    end)
-    
-    -- Jika gagal (penuh/bug), pindah server random
-    if not success then
-        warn("⚠️ Rejoin Gagal (Server Penuh/Tutup). Pindah Server Random...")
-        TeleportService:Teleport(game.PlaceId, LocalPlayer) 
     end
 end
 
+-- Loop Pengecekan
 local function StartLoop()
     task.spawn(function()
-        if IsAutoRejoin then
-            -- Tunggu Karakter Render
+        if IsActive then
+            -- Tunggu Karakter ada (Render)
             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
             
-            -- Tunggu 2 Detik (Sesuai Request)
+            -- Tunggu 2 Detik (Sesuai request)
             task.wait(2)
             
-            if IsAutoRejoin then
-                TriggerRejoin()
+            if IsActive then
+                IY_Rejoin()
             end
         end
     end)
 end
 
-ToggleBtn.MouseButton1Click:Connect(function()
-    IsAutoRejoin = not IsAutoRejoin
-    SaveConfig(IsAutoRejoin)
-    
-    if IsAutoRejoin then
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-        ToggleBtn.Text = "SYSTEM: ON"
+-- Button Logic
+StatusBtn.MouseButton1Click:Connect(function()
+    IsActive = not IsActive
+    if IsActive then
+        StatusBtn.Text = "ACTIVE (Running...)"
+        StatusBtn.BackgroundColor3 = Color3.fromRGB(50, 255, 100)
         StartLoop()
     else
-        ToggleBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-        ToggleBtn.Text = "SYSTEM: OFF"
+        StatusBtn.Text = "OFF"
+        StatusBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
     end
 end)
-
-if IsAutoRejoin then
-    StartLoop()
-end
