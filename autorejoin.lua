@@ -1,4 +1,4 @@
--- [[ 1. MASUKKAN LINK SCRIPT KAMU DI SINI ]]
+-- [[ 1. PASTIKAN LINK INI SUDAH BERISI KODE TERBARU YANG ADA DI BAWAH INI ]]
 local ScriptLink = "https://raw.githubusercontent.com/reyzzarjam2/Reyzzarjam-Script/refs/heads/main/autorejoin.lua"
 
 -----------------------------------------------------------
@@ -9,10 +9,9 @@ local TeleportService = game:GetService("TeleportService")
 local CoreGui = game:GetService("CoreGui")
 local LocalPlayer = Players.LocalPlayer
 
--- Nama file untuk menyimpan ingatan (ON/OFF)
 local ConfigFile = "ReyzzRejoin_Memory.txt"
 
--- Deteksi Queue gaya Infinite Yield (Yang terbukti work di kamu)
+-- Deteksi Queue ala Infinite Yield
 local queueteleport = (syn and syn.queue_on_teleport) 
     or queue_on_teleport 
     or (fluxus and fluxus.queue_on_teleport) 
@@ -20,22 +19,28 @@ local queueteleport = (syn and syn.queue_on_teleport)
     or (function() return print("⚠️ Executor ini tidak support Queue!") end)
 
 -----------------------------------------------------------
--- SISTEM MEMORI (SAVE & LOAD)
+-- SISTEM MEMORI (SAVE & LOAD LEBIH KUAT)
 -----------------------------------------------------------
 local IsActive = false
 
 local function SaveConfig(boolVal)
+    -- Simpan sebagai string bersih
     writefile(ConfigFile, tostring(boolVal))
+    print("💾 Config Saved:", tostring(boolVal))
 end
 
 local function LoadConfig()
     if isfile(ConfigFile) then
-        return readfile(ConfigFile) == "true"
+        local content = readfile(ConfigFile)
+        -- Hapus spasi/enter yang mungkin ikut terbaca (PENTING!)
+        content = string.gsub(content, "%s+", "")
+        print("📂 Membaca Config:", content)
+        return content == "true"
     end
     return false
 end
 
--- Load status terakhir saat script baru jalan
+-- Load status saat script jalan
 IsActive = LoadConfig()
 
 -----------------------------------------------------------
@@ -55,7 +60,7 @@ Frame.Active = true; Frame.Draggable = true
 Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
 
 local Title = Instance.new("TextLabel", Frame)
-Title.Text = "AUTO REJOIN (PERSISTENT)"
+Title.Text = "AUTO REJOIN (MEMORY)"
 Title.Size = UDim2.new(1,0,0,25)
 Title.BackgroundTransparency = 1
 Title.TextColor3 = Color3.new(1,1,1)
@@ -64,15 +69,15 @@ Title.Font = Enum.Font.GothamBold; Title.TextSize = 11
 local StatusBtn = Instance.new("TextButton", Frame)
 StatusBtn.Size = UDim2.new(0.9, 0, 0, 40)
 StatusBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
--- Set warna awal berdasarkan ingatan (Config)
+-- Set tampilan awal sesuai Config yang dimuat
 StatusBtn.BackgroundColor3 = IsActive and Color3.fromRGB(50, 255, 100) or Color3.fromRGB(255, 50, 50)
-StatusBtn.Text = IsActive and "ACTIVE (Running...)" or "OFF"
+StatusBtn.Text = IsActive and "ACTIVE (Auto-Start)" or "OFF"
 StatusBtn.TextColor3 = Color3.new(1,1,1)
 StatusBtn.Font = Enum.Font.GothamBlack
 Instance.new("UICorner", StatusBtn).CornerRadius = UDim.new(0, 6)
 
 -----------------------------------------------------------
--- LOGIKA REJOIN & LOOP
+-- LOGIKA UTAMA
 -----------------------------------------------------------
 
 local function IY_Rejoin()
@@ -102,10 +107,10 @@ local function StartLoop()
             -- Tunggu Karakter Render
             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
             
-            -- Tunggu 2 Detik sesuai request
+            -- Tunggu 2 Detik
             task.wait(2)
             
-            -- Cek lagi (Siapa tau dimatiin pas loading)
+            -- Cek lagi
             if IsActive then
                 IY_Rejoin()
             end
@@ -116,7 +121,7 @@ end
 -- Event Klik Tombol
 StatusBtn.MouseButton1Click:Connect(function()
     IsActive = not IsActive
-    SaveConfig(IsActive) -- SIMPAN STATUS KE FILE
+    SaveConfig(IsActive) -- Simpan ke file
     
     if IsActive then
         StatusBtn.Text = "ACTIVE (Running...)"
@@ -128,9 +133,8 @@ StatusBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ AUTO START ]]
--- Jika ingatan (Config) bilang TRUE, langsung jalankan loop tanpa klik tombol
+-- [[ AUTO START JIKA CONFIG TRUE ]]
 if IsActive then
-    print("✅ Config ditemukan: Auto-Start Rejoin Loop")
+    print("✅ Config 'true' ditemukan! Memulai loop otomatis...")
     StartLoop()
 end
