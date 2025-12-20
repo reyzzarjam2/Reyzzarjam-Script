@@ -108,7 +108,7 @@ local function StartLoop()
             local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
             
             -- Tunggu 2 Detik
-            task.wait(30)
+            task.wait(15)
             
             -- Cek lagi
             if IsActive then
