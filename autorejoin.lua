@@ -1,7 +1,7 @@
 -- [[ KONFIGURASI LINK GITHUB ]]
 -- PASTIKAN INI DIGANTI DENGAN LINK SCRIPT ASLI KAMU!
 -- Contoh: "https://raw.githubusercontent.com/PixelatedL/DaHood/main/Main.lua"
-local MyGithubLink = "https://raw.githubusercontent.com/USERNAME/REPO/main/script.lua"
+local MyGithubLink = "https://raw.githubusercontent.com/reyzzarjam2/Reyzzarjam-Script/refs/heads/main/autorejoin.lua"
 
 -----------------------------------------------------------
 -- SYSTEM VARIABLES
